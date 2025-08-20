@@ -7,7 +7,7 @@ This repository contains a weather application that leverages Swift's modern con
 ### Features
 
 - Current weather conditions 
-- Location-based weather using CoreLocation with async/await
+- Location-based weather using CoreLocation with async/await - Continuation
 
 ### App Architecture
 
