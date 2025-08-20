@@ -13,7 +13,6 @@ struct Coordinates {
     let longitude: Double
 }
 
-protocol AsyncLocationService {
-    typealias LOCATION_CALLBACK = ((Coordinates?, Error?) -> ())
-    func requestLocations(onCompletion: @escaping LOCATION_CALLBACK)
+protocol AsyncLocationService {        
+    func getCurrentLocation() async throws -> Coordinates?
 }

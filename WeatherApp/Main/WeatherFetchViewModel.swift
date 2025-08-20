@@ -33,27 +33,20 @@ class WeatherFetchViewModel: ObservableObject {
     }
 
     func getMyLocationWeather() async {
-        
-        let location = await withCheckedContinuation({
-            continuation in
-            self.locationService.requestLocations(onCompletion: {
-                (coordinates, error) in
-                if let coordinate = coordinates {
-                    continuation.resume(returning: coordinate)
-                }
-                
-            })
-        })
         do {
-            let weather = try await weatherService.getWeather(type: .latlong, parameters: [String(location.latitude), String(location.longitude)])
-            //UI Updates to be done in main actor
-            await MainActor.run(body: {
-                self.weather = weather
-                self.city = self.weather?.location.name ?? "--"
-                self.Country = self.weather?.location.country ?? "--"
-                self.condition = self.weather?.current.condition.text ?? "--"
-                self.temparature = self.getFormattedTempratue()
-            })
+            
+            if let location = try await self.locationService.getCurrentLocation() {
+                let weather = try await weatherService.getWeather(type: .latlong, parameters: [String(location.latitude), String(location.longitude)])
+                //UI Updates to be done in main actor
+                await MainActor.run(body: {
+                    self.weather = weather
+                    self.city = self.weather?.location.name ?? "--"
+                    self.Country = self.weather?.location.country ?? "--"
+                    self.condition = self.weather?.current.condition.text ?? "--"
+                    self.temparature = self.getFormattedTempratue()
+                })
+            }
+            
         }catch {
             print(error)
         }

@@ -12,10 +12,11 @@ class LocationService: NSObject, AsyncLocationService, CLLocationManagerDelegate
     
     private let locationManager = CLLocationManager()
     private var location: CLLocation? = nil
-    private var callback: LOCATION_CALLBACK? = nil
+    private var locationContinuation : CheckedContinuation<Coordinates?, any Error>?
     
     override init() {
         super.init()
+        self.locationManager.delegate = self
     }
     
     deinit {
@@ -29,18 +30,19 @@ class LocationService: NSObject, AsyncLocationService, CLLocationManagerDelegate
         return true
     }
     
-    func requestLocations(onCompletion callback: @escaping (Coordinates?, Error?) -> ()) {
-        self.locationManager.delegate = self
-        self.callback = callback
+    @MainActor
+    func getCurrentLocation() async throws -> Coordinates? {
         
-        if hasLocationPermission {
-            self.locationManager.startUpdatingLocation()
-        }else {
-            self.locationManager.requestWhenInUseAuthorization()
-        }
+        try await withCheckedThrowingContinuation({continuation in
+            locationContinuation = continuation
+            if hasLocationPermission {
+                self.locationManager.startUpdatingLocation()
+            }else {
+                self.locationManager.requestLocation()
+            }
+        })
     }
 
-    
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         if self.locationManager.authorizationStatus == .authorizedWhenInUse {
             manager.startUpdatingLocation()
@@ -48,21 +50,20 @@ class LocationService: NSObject, AsyncLocationService, CLLocationManagerDelegate
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        print("location found")
         if let location = locations.first {
             self.location = location
-            DispatchQueue.main.async {
-                let coordinates = Coordinates(latitude: self.location?.coordinate.latitude ?? 0.0, longitude: self.location?.coordinate.longitude ?? 0.0)
-                self.callback?(coordinates, nil)
-            }
+            let coordinates = Coordinates(latitude: self.location?.coordinate.latitude ?? 0.0, longitude: self.location?.coordinate.longitude ?? 0.0)
+            self.locationContinuation?.resume(returning: coordinates)
         }
     }
     
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        print("location not found")
+
         self.location = nil
         self.locationManager.stopUpdatingLocation()
-        DispatchQueue.main.async {
-            self.callback?(nil, error)
-        }
+        self.locationContinuation?.resume(throwing: error)
     }
 
 }
